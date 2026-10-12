@@ -101,7 +101,7 @@ var MAP=[
 ];
 var grid=[],px=16.5,py=11.5,pa=Math.PI;
 var vx=0,vy=0,lookVel=0;
-var hp=100,armor=0,ammo=40,score=0,kills=0;
+var hp=100,armor=25,ammo=60,score=0,kills=0,invuln=0;
 var keys={b:0,r:0,y:0};
 var doors=[],enemies=[],items=[],barrels=[];
 var running=false,dead=false,won=false;
@@ -109,7 +109,7 @@ var fireCd=0,msgT=0,bob=0,kick=0;
 var tmx=0,tmy=0,tlx=0,tly=0,tfire=false;
 var keysDown={};
 var isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-var MAX_SPEED=5.2,ACCEL=28,FRICTION=14,LOOK_SENS_TOUCH=2.4,LOOK_SENS_MOUSE=0.0018,LOOK_SMOOTH=12;
+var MAX_SPEED=5.8,ACCEL=34,FRICTION=16,LOOK_SENS_TOUCH=2.1,LOOK_SENS_MOUSE=0.0016,LOOK_SMOOTH=14;
 var canvas=document.getElementById('c');
 var ctx=canvas.getContext('2d');
 var W,H,FOV=Math.PI/3,DEPTH=18;
@@ -120,7 +120,7 @@ resize();
 for(var y=0;y<mapH;y++){grid[y]=[];for(var x=0;x<mapW;x++){var c=MAP[y][x];grid[y][x]=(c==='W'||c==='D')?1:0;
 if(c==='S'){px=x+0.5;py=y+0.5;pa=Math.PI}
 if(c==='D')doors.push({x:x,y:y,open:0,target:0,lock:null});
-if(c==='E')enemies.push({x:x+0.5,y:y+0.5,hp:40+(Math.random()*30|0),type:Math.random()<0.4?1:0,cd:0});
+if(c==='E'){var ex=x+0.5,ey=y+0.5;if(Math.hypot(ex-16.5,ey-11.5)>5.5)enemies.push({x:ex,y:ey,hp:28+(Math.random()*20|0),type:Math.random()<0.35?1:0,cd:0.5+Math.random()});}
 if(c==='B')barrels.push({x:x+0.5,y:y+0.5,hp:20});
 if(c==='1')items.push({x:x+0.5,y:y+0.5,kind:'key',col:'b'});
 if(c==='2')items.push({x:x+0.5,y:y+0.5,kind:'key',col:'r'});
@@ -130,14 +130,14 @@ if(c==='A')items.push({x:x+0.5,y:y+0.5,kind:'ar'});
 if(c==='X')items.push({x:x+0.5,y:y+0.5,kind:'exit'});
 }}
 if(doors[0])doors[0].lock='b';if(doors[1])doors[1].lock='r';if(doors[2])doors[2].lock='y';
-items.push({x:px+1.5,y:py+1,kind:'ammo'});items.push({x:px-1,y:py+2,kind:'ammo'});
+items.push({x:px+1.5,y:py+1,kind:'ammo'});items.push({x:px-1,y:py+2,kind:'ammo'});items.push({x:px+2,y:py-0.5,kind:'hp'});
 function cell(x,y){var ix=x|0,iy=y|0;if(ix<0||iy<0||ix>=mapW||iy>=mapH)return 1;
 for(var i=0;i<doors.length;i++){var d=doors[i];if(d.x===ix&&d.y===iy)return d.open<0.85?1:0}return grid[iy][ix]}
 function showMsg(t,d){msgT=d||2;var el=document.getElementById('msg');el.textContent=t;el.style.opacity='1'}
 document.getElementById('go').addEventListener('click',start);
 document.getElementById('go').addEventListener('touchend',function(e){e.preventDefault();start()},{passive:false});
 function start(){document.getElementById('title').style.display='none';document.getElementById('hud').style.display='flex';
-if(isTouch)document.getElementById('touch').style.display='block';running=true;dead=false;won=false;showMsg('FIND THE EXIT',2.5);
+if(isTouch)document.getElementById('touch').style.display='block';running=true;dead=false;won=false;invuln=2.5;showMsg('GO — YOU HAVE ARMOR',2.2);
 try{var a=new(window.AudioContext||window.webkitAudioContext)();window._ac=a;if(a.state==='suspended')a.resume()}catch(e){}}
 window.addEventListener('keydown',function(e){keysDown[e.code]=1;if(e.code==='Space'||e.code==='ControlLeft'){e.preventDefault();tfire=true}
 if(e.code==='KeyE')tryUse();if(e.code==='KeyR'&&dead)location.reload()});
@@ -164,16 +164,16 @@ window.addEventListener('mouseup',function(){tfire=false});
 function tryUse(){for(var i=0;i<doors.length;i++){var d=doors[i],dx=d.x+0.5-px,dy=d.y+0.5-py;
 if(Math.hypot(dx,dy)<1.9){if(d.lock&&!keys[d.lock]){showMsg('NEED '+(d.lock==='b'?'BLUE':d.lock==='r'?'RED':'YELLOW')+' KEY',1.5);return}
 d.target=d.target>0.5?0:1;return}}}
-function tryFire(){if(fireCd>0||dead)return;if(ammo<=0){fireCd=10;return}ammo--;fireCd=7;kick=0.12;
+function tryFire(){if(fireCd>0||dead)return;if(ammo<=0){fireCd=10;return}ammo--;fireCd=5;kick=0.1;
 var dist=0,step=0.07,hx=px,hy=py,sx=Math.cos(pa)*step,sy=Math.sin(pa)*step;
 while(dist<14){hx+=sx;hy+=sy;dist+=step;if(cell(hx,hy))break;
 for(var i=0;i<enemies.length;i++){var e=enemies[i];if(e.hp<=0)continue;
-if(Math.hypot(e.x-hx,e.y-hy)<0.38){e.hp-=22;score+=10;if(e.hp<=0){kills++;score+=50}return}}
+if(Math.hypot(e.x-hx,e.y-hy)<0.38){e.hp-=28;score+=10;if(e.hp<=0){kills++;score+=50}return}}
 for(var j=0;j<barrels.length;j++){var b=barrels[j];if(b.hp<=0)continue;
 if(Math.hypot(b.x-hx,b.y-hy)<0.42){b.hp-=22;if(b.hp<=0)explode(b);return}}}}
 function explode(b){b.hp=0;for(var i=0;i<enemies.length;i++){var e=enemies[i];if(e.hp<=0)continue;var d=Math.hypot(e.x-b.x,e.y-b.y);if(d<3)e.hp-=50*(1-d/3)}
 var pd=Math.hypot(px-b.x,py-b.y);if(pd<3)hurt(30*(1-pd/3))}
-function hurt(d){if(armor>0){var a=Math.min(armor,d*0.5);armor-=a;d-=a}hp-=d;
+function hurt(d){if(invuln>0||dead)return;if(armor>0){var a=Math.min(armor,d*0.55);armor-=a;d-=a}hp-=d;invuln=0.55;
 if(hp<=0){hp=0;dead=true;running=false;document.getElementById('title').style.display='flex';
 document.getElementById('title').querySelector('h1').textContent='YOU DIED';
 document.getElementById('title').querySelector('p').textContent='Score '+score+' · Kills '+kills;
@@ -201,14 +201,16 @@ if(!cell(px,ny+r)&&!cell(px,ny-r)&&!cell(px+r,ny)&&!cell(px-r,ny))py=ny;else vy*
 var moveAmt=Math.min(1,Math.hypot(vx,vy)/MAX_SPEED);bob+=dt*10*moveAmt;kick=Math.max(0,kick-dt*4);
 fireCd=Math.max(0,fireCd-1);if(tfire&&fireCd<=0)tryFire();
 for(var i=0;i<doors.length;i++){var d=doors[i];d.open+=(d.target-d.open)*Math.min(1,dt*3.2)}
+if(invuln>0)invuln-=dt;
 for(var i=0;i<enemies.length;i++){var e=enemies[i];if(e.hp<=0)continue;e.cd-=dt;var d=Math.hypot(e.x-px,e.y-py);
-if(d<10){if(d>1.25){var a=Math.atan2(py-e.y,px-e.x);var ex=e.x+Math.cos(a)*2.0*dt,ey=e.y+Math.sin(a)*2.0*dt;
-if(!cell(ex,e.y))e.x=ex;if(!cell(e.x,ey))e.y=ey}else if(e.cd<=0){hurt(9+e.type*3);e.cd=1.15}}}
+if(d<7.5){if(d>1.4){var a=Math.atan2(py-e.y,px-e.x);var spd=1.55+e.type*0.25;var ex=e.x+Math.cos(a)*spd*dt,ey=e.y+Math.sin(a)*spd*dt;
+if(!cell(ex,e.y)&&!cell(ex,e.y+0.2)&&!cell(ex,e.y-0.2))e.x=ex;if(!cell(e.x,ey)&&!cell(e.x+0.2,ey)&&!cell(e.x-0.2,ey))e.y=ey;}
+else if(e.cd<=0){hurt(5+e.type*2);e.cd=1.45;}}}
 for(var i=items.length-1;i>=0;i--){var it=items[i];if(Math.hypot(it.x-px,it.y-py)<0.65){
 if(it.kind==='key'){keys[it.col]=1;showMsg((it.col==='b'?'BLUE':it.col==='r'?'RED':'YELLOW')+' KEY',1.5)}
-else if(it.kind==='hp'){hp=Math.min(100,hp+25);showMsg('+25 HP',1)}
-else if(it.kind==='ar'){armor=Math.min(100,armor+40);showMsg('+40 ARMOR',1)}
-else if(it.kind==='ammo'){ammo+=15;showMsg('+AMMO',1)}
+else if(it.kind==='hp'){hp=Math.min(100,hp+35);showMsg('+35 HP',1)}
+else if(it.kind==='ar'){armor=Math.min(100,armor+50);showMsg('+50 ARMOR',1)}
+else if(it.kind==='ammo'){ammo+=20;showMsg('+AMMO',1)}
 else if(it.kind==='exit'){won=true;running=false;document.getElementById('title').style.display='flex';
 document.getElementById('title').querySelector('h1').textContent='YOU WIN!';
 document.getElementById('title').querySelector('p').textContent='Score '+score+' · Kills '+kills;
